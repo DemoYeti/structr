@@ -18,16 +18,28 @@
  */
 package org.structr.memgraph;
 
-import java.util.function.Function;
+import java.util.Iterator;
 import org.neo4j.driver.Record;
+import org.neo4j.driver.internal.shaded.reactor.core.publisher.Flux;
 
 /**
- *
  */
-class RecordLongMapper implements Function<Record, Long> {
+public class QueryIterable implements Iterable<Record> {
+
+	private MemgraphDatabaseService db = null;
+	private AdvancedCypherQuery query  = null;
+
+	public QueryIterable(final MemgraphDatabaseService db, final AdvancedCypherQuery query) {
+		this.query = query;
+		this.db    = db;
+	}
 
 	@Override
-	public Long apply(final Record t) {
-		return t.get(0).asLong();
+	public Iterator<Record> iterator() {
+
+		final SessionTransaction tx = db.getCurrentTransaction();
+		final Flux<Record> flux     = (Flux<Record>)tx.collectRecords(query.getStatement(false), query.getParameters(), null);
+
+		return flux.toIterable().iterator();
 	}
 }

@@ -20,14 +20,21 @@ package org.structr.memgraph;
 
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import org.apache.commons.lang3.StringUtils;
+import org.structr.api.DatabaseService;
 import org.structr.api.config.Settings;
+import org.structr.api.graph.Direction;
+import org.structr.api.search.Occurrence;
 import org.structr.api.search.QueryContext;
 import org.structr.api.search.SortOrder;
 import org.structr.api.search.SortSpec;
 import org.structr.api.util.Iterables;
+import org.structr.api.util.QueryHistogram;
+import org.structr.api.util.QueryTimer;
 
 /**
  *
@@ -37,8 +44,12 @@ public class AdvancedCypherQuery implements CypherQuery {
 	private final Map<String, Object> parameters    = new HashMap<>();
 	private final Set<String> indexLabels           = new LinkedHashSet<>();
 	private final Set<String> typeLabels            = new LinkedHashSet<>();
+	private final Map<String, GraphQueryPart> parts = new LinkedHashMap<>();
 	private final StringBuilder buffer              = new StringBuilder();
-	private final int fetchSize                     = Settings.FetchSize.getValue();
+	private QueryTimer queryTimer                   = null;
+	private int fetchSize                           = Settings.FetchSize.getValue();
+	private boolean hasOptionalParts                = false;
+	private String currentGraphPartIdentifier       = "n";
 	private String sourceTypeLabel                  = null;
 	private String targetTypeLabel                  = null;
 	private AbstractCypherIndex<?> index            = null;
@@ -46,11 +57,21 @@ public class AdvancedCypherQuery implements CypherQuery {
 	private int fetchPage                           = 0;
 	private int count                               = 0;
 	private QueryContext queryContext               = null;
+	private boolean timeoutViolated                 = false;
 
 	public AdvancedCypherQuery(final QueryContext queryContext, final AbstractCypherIndex<?> index, final int requestedPageSize, final int requestedPage) {
 
 		this.queryContext      = queryContext;
 		this.index             = index;
+
+		if (queryContext.overridesFetchSize()) {
+
+			final int overriddenFetchSize = queryContext.getOverriddenFetchSize();
+			if (overriddenFetchSize > 0) {
+
+				this.fetchSize = overriddenFetchSize;
+			}
+		}
 
 		if (queryContext.isSuperuser() && requestedPageSize < Integer.MAX_VALUE) {
 
@@ -170,8 +191,8 @@ public class AdvancedCypherQuery implements CypherQuery {
 
 			buf.append(" SKIP ");
 			buf.append(fetchPage * fetchSize);
-			buf.append(" LIMIT ");
-			buf.append(fetchSize);
+			//buf.append(" LIMIT ");
+			//buf.append(fetchSize);
 		}
 
 		return buf.toString();
@@ -187,7 +208,15 @@ public class AdvancedCypherQuery implements CypherQuery {
 	}
 
 	public void endGroup() {
-		buffer.append(")");
+
+		if ('(' == buffer.charAt(buffer.length() - 1)) {
+
+			buffer.deleteCharAt(buffer.length() - 1);
+
+		} else {
+
+			buffer.append(")");
+		}
 	}
 
 	@Override
@@ -227,6 +256,10 @@ public class AdvancedCypherQuery implements CypherQuery {
 	}
 
 	public void addSimpleParameter(final String key, final String operator, final Object value, final boolean isProperty, final boolean caseInsensitive) {
+		addSimpleParameter("n", key, operator, value, isProperty, caseInsensitive);
+	}
+
+	public void addSimpleParameter(final String identifier, final String key, final String operator, final Object value, final boolean isProperty, final boolean caseInsensitive) {
 
 		if (value != null) {
 
@@ -238,7 +271,8 @@ public class AdvancedCypherQuery implements CypherQuery {
 					buffer.append("toLower(");
 				}
 
-				buffer.append("n.`");
+				buffer.append(identifier);
+				buffer.append(".`");
 			}
 
 			buffer.append(key);
@@ -265,7 +299,8 @@ public class AdvancedCypherQuery implements CypherQuery {
 		} else {
 
 			if (isProperty) {
-				buffer.append("n.`");
+				buffer.append(identifier);
+				buffer.append(".`");
 			}
 
 			buffer.append(key);
@@ -275,20 +310,69 @@ public class AdvancedCypherQuery implements CypherQuery {
 			}
 
 			buffer.append(operator);
-			buffer.append(" Null");
+			buffer.append(" null");
 		}
 	}
 
-	public void addListParameter(final String key, final String operator, final Object value) {
+	public void addNullObjectParameter(final Direction direction, final String relationship) {
 
-		final String listFunction = index.anyOrSingleFunction();
+		buffer.append("not (n)");
+
+		switch (direction) {
+
+			case INCOMING:
+				buffer.append("<");
+				break;
+		}
+
+		buffer.append("-[:");
+		buffer.append(relationship);
+		buffer.append("]-");
+
+		switch (direction) {
+
+			case OUTGOING:
+				buffer.append(">");
+				break;
+		}
+
+		buffer.append("()");
+	}
+
+	public void addPatternParameter(final Direction direction, final String relationship, final String identifier) {
+
+		buffer.append("(n)");
+
+		switch (direction) {
+
+			case INCOMING:
+				buffer.append("<");
+				break;
+		}
+
+		buffer.append("-[:");
+		buffer.append(relationship);
+		buffer.append("]-");
+
+		switch (direction) {
+
+			case OUTGOING:
+				buffer.append(">");
+				break;
+		}
+
+		buffer.append("(");
+		buffer.append(identifier);
+		buffer.append(")");
+	}
+
+	public void addListParameter(final String key, final String operator, final Object value) {
 
 		if (value != null) {
 
 			final String paramKey = "param" + count++;
 
-			buffer.append(listFunction);
-			buffer.append("(x IN n.`");
+			buffer.append("ANY (x IN n.`");
 			buffer.append(key);
 			buffer.append("` WHERE x ");
 			buffer.append(operator);
@@ -300,8 +384,7 @@ public class AdvancedCypherQuery implements CypherQuery {
 
 		} else {
 
-			buffer.append(listFunction);
-			buffer.append("(x IN n.`");
+			buffer.append("ANY (x IN n.`");
 			buffer.append(key);
 			buffer.append("` WHERE x ");
 			buffer.append(operator);
@@ -333,6 +416,38 @@ public class AdvancedCypherQuery implements CypherQuery {
 		parameters.put(paramKey2, value2);
 	}
 
+	public void addGraphQueryPart(final GraphQueryPart newPart) {
+
+		final Occurrence occurrence = newPart.getOccurrence();
+		if (Occurrence.OPTIONAL.equals(occurrence)) {
+
+			final String linkIdentifier       = newPart.getLinkIdentifier();
+			final GraphQueryPart existingPart = parts.get(linkIdentifier);
+
+			if (existingPart != null) {
+
+				// re-use identifier in query, do not add new part
+				newPart.setIdentifier(existingPart.getIdentifier());
+
+			} else {
+
+				final String identifier = getNextGraphPartIdentifier();
+
+				newPart.setIdentifier(identifier);
+
+				this.parts.put(linkIdentifier, newPart);
+			}
+
+		} else {
+
+			final String identifier = getNextGraphPartIdentifier();
+
+			newPart.setIdentifier(identifier);
+
+			this.parts.put(identifier, newPart);
+		}
+	}
+
 	@Override
 	public void sort(final SortOrder sortOrder) {
 		this.sortOrder = sortOrder;
@@ -354,9 +469,22 @@ public class AdvancedCypherQuery implements CypherQuery {
 		return targetTypeLabel;
 	}
 
+	public void hasOptionalParts() {
+		hasOptionalParts = true;
+	}
+
 	@Override
 	public QueryContext getQueryContext() {
 		return queryContext;
+	}
+
+	public QueryTimer getQueryTimer() {
+
+		if (queryTimer == null) {
+			queryTimer = QueryHistogram.newTimer();
+		}
+
+		return queryTimer;
 	}
 
 	// ----- private methods -----
@@ -377,5 +505,80 @@ public class AdvancedCypherQuery implements CypherQuery {
 
 		// null indicates "no main type"
 		return null;
+	}
+
+
+	private String getGraphPartForMatch() {
+
+		final DatabaseService db = index.getDatabaseService();
+		final String tenantId    = db.getTenantIdentifier();
+		final StringBuilder buf  = new StringBuilder();
+		final Set<String> with   = new LinkedHashSet<>();
+		boolean first            = true;
+
+		for (final GraphQueryPart part : parts.values()) {
+
+			if (first) {
+
+				buf.append(part.getRelationshipPattern());
+
+				buf.append("(");
+				buf.append(part.getIdentifier());
+				buf.append(":NodeInterface");
+
+				if (tenantId != null) {
+
+					buf.append(":");
+					buf.append(tenantId);
+				}
+
+				buf.append(":");
+				buf.append(part.getOtherLabel());
+				buf.append(")");
+
+			} else {
+
+				buf.append(" WITH n, ");
+				buf.append(StringUtils.join(with, ", "));
+				buf.append(" MATCH (n)");
+				buf.append(part.getRelationshipPattern());
+
+				buf.append("(");
+				buf.append(part.getIdentifier());
+				buf.append(":NodeInterface");
+
+				if (tenantId != null) {
+
+					buf.append(":");
+					buf.append(tenantId);
+				}
+
+				buf.append(":");
+				buf.append(part.getOtherLabel());
+				buf.append(")");
+
+			}
+
+			first = false;
+
+			with.add(part.getIdentifier());
+		}
+
+		return buf.toString();
+	}
+
+	private String getNextGraphPartIdentifier() {
+
+		currentGraphPartIdentifier = Character.toString(currentGraphPartIdentifier.charAt(0) + 1);
+
+		return currentGraphPartIdentifier;
+	}
+
+	public void setTimeoutViolated () {
+		this.timeoutViolated = true;
+	}
+
+	public boolean timeoutViolated() {
+		return this.timeoutViolated;
 	}
 }

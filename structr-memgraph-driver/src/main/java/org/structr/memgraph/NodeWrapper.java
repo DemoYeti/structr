@@ -39,7 +39,7 @@ import org.structr.api.util.Iterables;
 /**
  *
  */
-class NodeWrapper extends EntityWrapper<org.neo4j.driver.v1.types.Node> implements Node {
+class NodeWrapper extends EntityWrapper<org.neo4j.driver.types.Node> implements Node {
 
 	private static final Logger logger                                           = LoggerFactory.getLogger(NodeWrapper.class);
 	protected static FixedSizeCache<Long, NodeWrapper> nodeCache                 = null;
@@ -52,7 +52,7 @@ class NodeWrapper extends EntityWrapper<org.neo4j.driver.v1.types.Node> implemen
 		super();
 	}
 
-	private NodeWrapper(final MemgraphDatabaseService db, final org.neo4j.driver.v1.types.Node node) {
+	private NodeWrapper(final MemgraphDatabaseService db, final org.neo4j.driver.types.Node node) {
 		super(db, node);
 	}
 
@@ -124,7 +124,7 @@ class NodeWrapper extends EntityWrapper<org.neo4j.driver.v1.types.Node> implemen
 		buf.append(MemgraphDatabaseService.createParameterMapStringFromMapAndInsertIntoQueryParameters("relProperties", properties, map));
 		buf.append(" RETURN r");
 
-		final org.neo4j.driver.v1.types.Relationship rel = tx.getRelationship(buf.toString(), map);
+		final org.neo4j.driver.types.Relationship rel = tx.getRelationship(buf.toString(), map);
 
 		setModified();
 		otherNode.setModified();
@@ -384,7 +384,7 @@ class NodeWrapper extends EntityWrapper<org.neo4j.driver.v1.types.Node> implemen
 	}
 
 	// ----- public static methods -----
-	public static NodeWrapper newInstance(final MemgraphDatabaseService db, final org.neo4j.driver.v1.types.Node node) {
+	public static NodeWrapper newInstance(final MemgraphDatabaseService db, final org.neo4j.driver.types.Node node) {
 
 		synchronized (nodeCache) {
 
@@ -412,7 +412,7 @@ class NodeWrapper extends EntityWrapper<org.neo4j.driver.v1.types.Node> implemen
 
 				map.put("id", id);
 
-				final org.neo4j.driver.v1.types.Node node = tx.getNode(concat("MATCH (n", tenantIdentifier, ") WHERE ID(n) = $id RETURN DISTINCT n"), map);
+				final org.neo4j.driver.types.Node node = tx.getNode(concat("MATCH (n", tenantIdentifier, ") WHERE ID(n) = $id RETURN DISTINCT n"), map);
 				if (node != null) {
 
 					wrapper = NodeWrapper.newInstance(db, node);

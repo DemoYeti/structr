@@ -42,16 +42,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
-import org.neo4j.driver.v1.AuthTokens;
-import org.neo4j.driver.v1.Config;
-import org.neo4j.driver.v1.Driver;
-import org.neo4j.driver.v1.GraphDatabase;
-import org.neo4j.driver.v1.Session;
-import org.neo4j.driver.v1.TransactionConfig;
-import org.neo4j.driver.v1.exceptions.AuthenticationException;
-import org.neo4j.driver.v1.exceptions.ClientException;
-import org.neo4j.driver.v1.exceptions.DatabaseException;
-import org.neo4j.driver.v1.exceptions.ServiceUnavailableException;
+import org.neo4j.driver.AuthTokens;
+import org.neo4j.driver.Config;
+import org.neo4j.driver.Driver;
+import org.neo4j.driver.GraphDatabase;
+import org.neo4j.driver.Record;
+import org.neo4j.driver.Result;
+import org.neo4j.driver.Session;
+import org.neo4j.driver.SessionConfig;
+import org.neo4j.driver.TransactionConfig;
+import org.neo4j.driver.Value;
+import org.neo4j.driver.exceptions.AuthenticationException;
+import org.neo4j.driver.exceptions.ClientException;
+import org.neo4j.driver.exceptions.DatabaseException;
+import org.neo4j.driver.exceptions.ServiceUnavailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.structr.api.AbstractDatabaseService;
@@ -82,17 +86,20 @@ import org.structr.api.util.NodeWithOwnerResult;
  */
 public class MemgraphDatabaseService extends AbstractDatabaseService implements GraphProperties {
 
-	private static final Logger logger                                = LoggerFactory.getLogger(MemgraphDatabaseService.class.getName());
-	private static final ThreadLocal<SessionTransaction> sessions     = new ThreadLocal<>();
-	private final Set<String> supportedQueryLanguages                 = new LinkedHashSet<>();
-	private Properties globalGraphProperties                          = null;
-	private CypherRelationshipIndex relationshipIndex                 = null;
-	private CypherNodeIndex nodeIndex                                 = null;
-	private String errorMessage                                       = null;
-	private String databaseUrl                                        = null;
-	private String databasePath                                       = null;
-	private Driver driver                                             = null;
-	private boolean supportsANY                                       = false;
+	private static final Logger logger                            = LoggerFactory.getLogger(MemgraphDatabaseService.class.getName());
+	private static final ThreadLocal<SessionTransaction> sessions = new ThreadLocal<>();
+	private final Set<String> supportedQueryLanguages             = new LinkedHashSet<>();
+	private Properties globalGraphProperties                      = null;
+	private CypherRelationshipIndex relationshipIndex             = null;
+	private CypherNodeIndex nodeIndex                             = null;
+	private boolean supportsRelationshipIndexes                   = false;
+	private boolean supportsIdempotentIndexCreation               = false;
+	private boolean supportsReactive                              = true;
+	private String errorMessage                                   = null;
+	private String databaseUrl                                    = null;
+	private String databasePath                                   = null;
+	private Driver driver                                         = null;
+	private SessionConfig sessionConfig                           = null;
 
 	@Override
 	public boolean initialize(final String name, final String version, final String instance) {
@@ -108,7 +115,7 @@ public class MemgraphDatabaseService extends AbstractDatabaseService implements 
 		databaseUrl              = Settings.ConnectionUrl.getPrefixedValue(serviceName);
 		final String username    = Settings.ConnectionUser.getPrefixedValue(serviceName);
 		final String password    = Settings.ConnectionPassword.getPrefixedValue(serviceName);
-		String databaseDriverUrl = "bolt://" + databaseUrl;
+		String databaseDriverUrl  = ((databaseUrl.indexOf("://") == -1) ? "bolt://" + databaseUrl : databaseUrl);
 
 		// build list of supported query languages
 		supportedQueryLanguages.add("application/x-cypher-query");
@@ -129,10 +136,19 @@ public class MemgraphDatabaseService extends AbstractDatabaseService implements 
 
 		try {
 
+			final String versionName  = org.apache.commons.lang3.StringUtils.defaultIfBlank(name, "unknown version");
+			final String instanceName = org.apache.commons.lang3.StringUtils.defaultIfBlank(instance, "unknown instance");
+			final String userAgent    = "structr/" + versionName  + "-" + instanceName;
+			final boolean isTesting   = Settings.ConnectionUrl.getValue().equals(Settings.TestingConnectionUrl.getValue());
+			final Config config       = Config.builder().withUserAgent(userAgent).build();
+
 			driver = GraphDatabase.driver(databaseDriverUrl,
-				AuthTokens.basic(username, password),
-				Config.build().withEncryption().toConfig()
+					AuthTokens.basic(username, password)
 			);
+
+			sessionConfig = SessionConfig.defaultConfig();
+
+			configureVersionDependentFeatures();
 
 			final int relCacheSize  = Settings.RelationshipCacheSize.getPrefixedValue(serviceName);
 			final int nodeCacheSize = Settings.NodeCacheSize.getPrefixedValue(serviceName);
@@ -142,18 +158,6 @@ public class MemgraphDatabaseService extends AbstractDatabaseService implements 
 
 			RelationshipWrapper.initialize(relCacheSize);
 			logger.info("Relationship cache size set to {}", relCacheSize);
-
-
-			// auto-detect support for ANY
-			try (final Transaction tx = beginTx()) {
-
-				execute("MATCH (n) WHERE ANY (x in n.test WHERE x = 'test') RETURN n LIMIT 1");
-				supportsANY = true;
-				tx.success();
-
-			} catch (Throwable t) {
-				supportsANY = false;
-			}
 
 			// signal success
 			return true;
@@ -182,7 +186,16 @@ public class MemgraphDatabaseService extends AbstractDatabaseService implements 
 		if (session == null || session.isClosed()) {
 
 			try {
-				session = new SessionTransaction(this, driver.session());
+
+				if (supportsReactive) {
+
+					session = new ReactiveSessionTransaction(this, driver.rxSession());
+
+				} else {
+
+					session = new AsyncSessionTransaction(this, driver.asyncSession());
+				}
+
 				sessions.set(session);
 
 			} catch (ServiceUnavailableException ex) {
@@ -202,7 +215,16 @@ public class MemgraphDatabaseService extends AbstractDatabaseService implements 
 		if (session == null || session.isClosed()) {
 
 			try {
-				session = new SessionTransaction(this, driver.session(), timeoutInSeconds);
+
+				if (supportsReactive) {
+
+					session = new ReactiveSessionTransaction(this, driver.rxSession(), timeoutInSeconds);
+
+				} else {
+
+					session = new AsyncSessionTransaction(this, driver.asyncSession(), timeoutInSeconds);
+				}
+
 				sessions.set(session);
 
 			} catch (ServiceUnavailableException ex) {
@@ -869,10 +891,6 @@ public class MemgraphDatabaseService extends AbstractDatabaseService implements 
 		return false;
 	}
 
-	public String anyOrSingleFunction() {
-		return (supportsANY ? "ANY" : "SINGLE");
-	}
-
 	@Override
 	public String getErrorMessage() {
 		return errorMessage;
@@ -887,26 +905,34 @@ public class MemgraphDatabaseService extends AbstractDatabaseService implements 
 	}
 
 	// ----- private methods -----
-	private void createUUIDConstraint() {
+	private String getDatabaseVersion() {
 
-		// add UUID uniqueness constraint
-		try (final Session session = driver.session()) {
+		try {
 
-			// this call may fail silently (e.g. if the index does not exist yet)
-			try (final org.neo4j.driver.v1.Transaction tx = session.beginTransaction()) {
+			try (final Session session = driver.session()) {
 
-				tx.run("DROP INDEX ON :NodeInterface(id)");
-				tx.success();
+				try (final org.neo4j.driver.Transaction tx = session.beginTransaction()) {
 
-			} catch (Throwable t) { }
+					final Result result     = tx.run("SHOW VERSION;");
+					final List<Record> list = result.list();
 
-			// this call may NOT fail silently, hence we don't catch any exceptions
-			try (final org.neo4j.driver.v1.Transaction tx = session.beginTransaction()) {
+					for (final Record record : list) {
 
-				tx.run("CREATE CONSTRAINT ON (node:NodeInterface) ASSERT node.id IS UNIQUE");
-				tx.success();
+						final Value version = record.get("version");
+						if (!version.isNull() && !version.isEmpty()) {
+
+							return version.asString();
+						}
+					}
+
+				}
 			}
+
+		} catch (Throwable t) {
+			t.printStackTrace();
 		}
+
+		return "0.0.0";
 	}
 
 	private Properties getProperties() {
@@ -942,6 +968,17 @@ public class MemgraphDatabaseService extends AbstractDatabaseService implements 
 		}
 
 		return 0;
+	}
+
+	private void configureVersionDependentFeatures() {
+
+		final String versionString  = getDatabaseVersion();
+		final long versionNumber    = parseVersionString(versionString);
+
+		logger.info("Memgraph version is {}", versionString);
+
+//		this.supportsIdempotentIndexCreation = versionNumber >= parseVersionString("4.1.3");
+		this.supportsReactive                = false;
 	}
 
 	// ----- nested classes -----
@@ -1088,4 +1125,37 @@ public class MemgraphDatabaseService extends AbstractDatabaseService implements 
 
 		return null;
 	}
+
+	/**
+	 * Splits version strings into individual elements and creates comparable numbers.
+	 * This implementation supports version strings with up to 4 components
+	 * and minor versions up to 9999. If you need more, please  adapt the "num"
+	 * and "size values below.
+
+	 * @param version
+	 * @return a numerical representation of the version string
+	 */
+	private long parseVersionString(final String version) {
+
+		final String[] parts = version.split("\\.");
+		final int num        = 4; // 4 components
+		final int size       = 4; // 0 - 9999
+		long versionNumber   = 0L;
+		int exponent         = num * size;
+
+		for (final String part : parts) {
+
+			try {
+
+				final int value = Integer.valueOf(part.trim());
+				versionNumber += value * Math.pow(10, exponent);
+
+			} catch (Throwable t) {}
+
+			exponent -= size;
+		}
+
+		return versionNumber;
+	}
+
 }

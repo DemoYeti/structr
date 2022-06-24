@@ -43,6 +43,7 @@ import org.structr.memgraph.converter.StringTypeConverter;
 import org.structr.memgraph.factory.ArrayQueryFactory;
 import org.structr.memgraph.factory.ComparisonQueryFactory;
 import org.structr.memgraph.factory.EmptyQueryFactory;
+import org.structr.memgraph.factory.GraphQueryFactory;
 import org.structr.memgraph.factory.GroupQueryFactory;
 import org.structr.memgraph.factory.KeywordQueryFactory;
 import org.structr.memgraph.factory.NotEmptyQueryFactory;
@@ -102,16 +103,13 @@ abstract class AbstractCypherIndex<T extends PropertyContainer> extends Abstract
 		return INDEXABLE.contains(type);
 	}
 
-	public String anyOrSingleFunction() {
-		return db.anyOrSingleFunction();
-	}
-
 	// ----- private methods -----
 	private void init() {
 
 		factories.put(NotEmptyQuery.class,     new NotEmptyQueryFactory(this));
 		factories.put(FulltextQuery.class,     new KeywordQueryFactory(this));
 		factories.put(SpatialQuery.class,      new SpatialQueryFactory(this));
+		factories.put(GraphQuery.class,        new GraphQueryFactory(this));
 		factories.put(GroupQuery.class,        new GroupQueryFactory(this));
 		factories.put(RangeQuery.class,        new RangeQueryFactory(this));
 		factories.put(ExactQuery.class,        new KeywordQueryFactory(this));

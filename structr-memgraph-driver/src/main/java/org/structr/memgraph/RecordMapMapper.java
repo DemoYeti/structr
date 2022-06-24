@@ -20,7 +20,7 @@ package org.structr.memgraph;
 
 import java.util.Map;
 import java.util.function.Function;
-import org.neo4j.driver.v1.Record;
+import org.neo4j.driver.Record;
 
 /**
  *

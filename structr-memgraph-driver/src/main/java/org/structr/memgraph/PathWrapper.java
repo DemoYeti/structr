@@ -21,8 +21,8 @@ package org.structr.memgraph;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import org.neo4j.driver.v1.types.Path.Segment;
-import org.neo4j.driver.v1.types.Relationship;
+import org.neo4j.driver.types.Path.Segment;
+import org.neo4j.driver.types.Relationship;
 import org.structr.api.NotFoundException;
 import org.structr.api.graph.Path;
 import org.structr.api.graph.PropertyContainer;
@@ -33,10 +33,10 @@ import org.structr.api.graph.PropertyContainer;
  */
 class PathWrapper implements Path {
 
-	private org.neo4j.driver.v1.types.Path path = null;
+	private org.neo4j.driver.types.Path path = null;
 	private MemgraphDatabaseService db              = null;
 
-	public PathWrapper(final MemgraphDatabaseService db, final org.neo4j.driver.v1.types.Path path) {
+	public PathWrapper(final MemgraphDatabaseService db, final org.neo4j.driver.types.Path path) {
 
 		this.path = path;
 		this.db   = db;
@@ -63,7 +63,7 @@ class PathWrapper implements Path {
 		private Segment current      = null;
 		private int state            = 0;
 
-		public SegmentIterator(final org.neo4j.driver.v1.types.Path path) {
+		public SegmentIterator(final org.neo4j.driver.types.Path path) {
 			this.it = path.iterator();
 		}
 

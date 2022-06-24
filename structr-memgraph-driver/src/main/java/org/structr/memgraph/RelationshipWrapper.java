@@ -30,7 +30,7 @@ import org.structr.api.util.FixedSizeCache;
 /**
  *
  */
-class RelationshipWrapper extends EntityWrapper<org.neo4j.driver.v1.types.Relationship> implements Relationship {
+class RelationshipWrapper extends EntityWrapper<org.neo4j.driver.types.Relationship> implements Relationship {
 
 	protected static FixedSizeCache<Long, RelationshipWrapper> relationshipCache = null;
 
@@ -43,7 +43,7 @@ class RelationshipWrapper extends EntityWrapper<org.neo4j.driver.v1.types.Relati
 		super();
 	}
 
-	private RelationshipWrapper(final MemgraphDatabaseService db, final org.neo4j.driver.v1.types.Relationship relationship) {
+	private RelationshipWrapper(final MemgraphDatabaseService db, final org.neo4j.driver.types.Relationship relationship) {
 
 		super(db, relationship);
 
@@ -191,7 +191,7 @@ class RelationshipWrapper extends EntityWrapper<org.neo4j.driver.v1.types.Relati
 		relationshipCache.clear();
 	}
 
-	public static RelationshipWrapper newInstance(final MemgraphDatabaseService db, final org.neo4j.driver.v1.types.Relationship relationship) {
+	public static RelationshipWrapper newInstance(final MemgraphDatabaseService db, final org.neo4j.driver.types.Relationship relationship) {
 
 		synchronized (relationshipCache) {
 
