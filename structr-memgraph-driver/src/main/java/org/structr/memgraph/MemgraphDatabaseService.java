@@ -911,20 +911,16 @@ public class MemgraphDatabaseService extends AbstractDatabaseService implements 
 
 			try (final Session session = driver.session()) {
 
-				try (final org.neo4j.driver.Transaction tx = session.beginTransaction()) {
+				final Result result     = session.run("SHOW VERSION;");
+				final List<Record> list = result.list();
 
-					final Result result     = tx.run("SHOW VERSION;");
-					final List<Record> list = result.list();
+				for (final Record record : list) {
 
-					for (final Record record : list) {
+					final Value version = record.get("version");
+					if (!version.isNull() && !version.isEmpty()) {
 
-						final Value version = record.get("version");
-						if (!version.isNull() && !version.isEmpty()) {
-
-							return version.asString();
-						}
+						return version.asString();
 					}
-
 				}
 			}
 
