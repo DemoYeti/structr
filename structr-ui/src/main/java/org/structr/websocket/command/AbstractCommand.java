@@ -22,6 +22,7 @@ import java.util.regex.Pattern;
 import org.eclipse.jetty.websocket.api.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.structr.api.config.Settings;
 import org.structr.common.SecurityContext;
 import org.structr.common.error.FrameworkException;
 import org.structr.core.GraphObject;
@@ -43,14 +44,11 @@ import org.structr.websocket.message.WebSocketMessage;
  */
 public abstract class AbstractCommand {
 
-	public static final Pattern UUID_PATTERN = Pattern.compile("[a-fA-F0-9]{32}");
-	public static final String COMMAND_KEY   = "command";
-	public static final String ID_KEY        = "id";
-	private static final Logger logger       = LoggerFactory.getLogger(AbstractCommand.class.getName());
+	private static final Logger logger        = LoggerFactory.getLogger(AbstractCommand.class.getName());
 
-	protected Session session                = null;
-	protected StructrWebSocket webSocket     = null;
-	protected String callback                = null;
+	protected Session session                 = null;
+	protected StructrWebSocket webSocket      = null;
+	protected String callback                 = null;
 
 	public abstract void processMessage(final WebSocketMessage webSocketData) throws FrameworkException;
 
@@ -287,6 +285,7 @@ public abstract class AbstractCommand {
 		}
 
 	}
+
 	/**
 	 * Search for a hidden page named __ShadowDocument__ of type.
 	 *
@@ -349,17 +348,7 @@ public abstract class AbstractCommand {
 	}
 
 	// ----- private methods -----
-	private boolean isValidUuid(final String id) {
-
-		if (id != null) {
-
-			if (id.length() != 32) {
-				return false;
-			}
-
-			return UUID_PATTERN.matcher(id).matches();
-		}
-
-		return false;
+	private static boolean isValidUuid(final String id) {
+		return Settings.isValidUuid(id);
 	}
 }

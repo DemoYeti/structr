@@ -40,6 +40,11 @@ public class UniqueToken extends SemanticErrorToken {
 		this.existingUuid = existingUuid;
 	}
 
+	public UniqueToken(final String type, final PropertyKey propertyKey, final String uuid, final String existingUuid, final Object value) {
+		super(type, propertyKey, "already_taken", uuid, value);
+		this.existingUuid = existingUuid;
+	}
+
 	public JsonObject toJSON() {
 
 		final JsonObject token = new JsonObject();
@@ -93,6 +98,12 @@ public class UniqueToken extends SemanticErrorToken {
 
 			buf.append(". Existing uuid: ");
 			buf.append(getExistingUuid());
+		}
+
+		if (getValue() != null) {
+
+			buf.append(" Value = ");
+			buf.append(getValue());
 		}
 
 		return buf.toString();
