@@ -1737,7 +1737,7 @@ public class SearchAndSortingTest extends StructrTest {
 				tx.success();
 			}
 
-			Settings.CypherDebugLogging.setValue(true);
+			//Settings.CypherDebugLogging.setValue(true);
 
 			final int tester1NodeCount   = tester1Nodes.size();
 			final int tester2NodeCount   = tester2Nodes.size();

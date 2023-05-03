@@ -123,7 +123,7 @@ public class BasicTest extends StructrTest {
 	@Test
 	public void testQuerySoftLimit() {
 
-		Settings.CypherDebugLogging.setValue(true);
+		//Settings.CypherDebugLogging.setValue(true);
 
 		try {
 			Settings.ResultCountSoftLimit.setValue(100);
