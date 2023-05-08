@@ -753,11 +753,7 @@ public class SchemaProperty extends SchemaReloadingNode implements PropertyDefin
 				arguments.add(GraphQLArgument.newArgument().name("_equals").type(Scalars.GraphQLInt).build());
 				arguments.add(GraphQLArgument.newArgument().name("_conj").type(Scalars.GraphQLString).build());
 				break;
-
-			case Long:
-				arguments.add(GraphQLArgument.newArgument().name("_equals").type(Scalars.GraphQLLong).build());
-				arguments.add(GraphQLArgument.newArgument().name("_conj").type(Scalars.GraphQLString).build());
-				break;
+				
 		}
 
 		return arguments;

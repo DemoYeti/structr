@@ -26,16 +26,8 @@ import graphql.schema.GraphQLType;
  */
 public class GraphQLListType extends GraphQLList {
 
-	private String name = null;
-
 	public GraphQLListType(final GraphQLType wrappedType) {
 
 		super(wrappedType);
-		this.name = wrappedType.getName();
-	}
-
-	@Override
-	public String getName() {
-		return name;
 	}
 }

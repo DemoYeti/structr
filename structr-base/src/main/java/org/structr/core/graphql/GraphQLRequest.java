@@ -20,9 +20,9 @@ package org.structr.core.graphql;
 
 import graphql.language.*;
 import graphql.parser.Parser;
-import org.antlr.v4.runtime.RecognitionException;
-import org.antlr.v4.runtime.Token;
-import org.antlr.v4.runtime.misc.ParseCancellationException;
+import groovyjarjarantlr4.v4.runtime.RecognitionException;
+import groovyjarjarantlr4.v4.runtime.Token;
+import groovyjarjarantlr4.v4.runtime.misc.ParseCancellationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.structr.common.SecurityContext;

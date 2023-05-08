@@ -141,7 +141,6 @@ public class SchemaHelper {
 		graphQLTypeMap.put(Type.String, Scalars.GraphQLString);
 		graphQLTypeMap.put(Type.Double, Scalars.GraphQLFloat);
 		graphQLTypeMap.put(Type.Count, Scalars.GraphQLInt);
-		graphQLTypeMap.put(Type.Long, Scalars.GraphQLLong);
 		graphQLTypeMap.put(Type.Enum, Scalars.GraphQLString);
 		graphQLTypeMap.put(Type.Date, Scalars.GraphQLString);
 	}
