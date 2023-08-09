@@ -30,9 +30,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.Part;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.io.QuietException;
-import org.eclipse.jetty.server.MultiPartFormInputStream;
-import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.structr.api.RetryException;
@@ -222,7 +221,7 @@ public class UploadServlet extends AbstractServletBase implements HttpServiceSer
 				if (p.getSubmittedFileName() == null) {
 
 					final String fieldName = p.getName();
-					final String fieldValue = new String(((MultiPartFormInputStream.MultiPart) p).getBytes());
+					final String fieldValue = p.toString();
 
 					if (REDIRECT_AFTER_UPLOAD_PARAMETER.equals(fieldName)) {
 
