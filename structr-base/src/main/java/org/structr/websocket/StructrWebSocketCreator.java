@@ -19,9 +19,9 @@
 package org.structr.websocket;
 
 import com.google.gson.Gson;
-import org.eclipse.jetty.websocket.server.JettyServerUpgradeRequest;
-import org.eclipse.jetty.websocket.server.JettyServerUpgradeResponse;
-import org.eclipse.jetty.websocket.server.JettyWebSocketCreator;
+import org.eclipse.jetty.ee10.websocket.server.JettyServerUpgradeRequest;
+import org.eclipse.jetty.ee10.websocket.server.JettyServerUpgradeResponse;
+import org.eclipse.jetty.ee10.websocket.server.JettyWebSocketCreator;
 import org.structr.core.auth.Authenticator;
 
 ;
@@ -45,10 +45,8 @@ public class StructrWebSocketCreator implements JettyWebSocketCreator {
 		this.authenticator  = authenticator;
 		this.gson           = gson;
 	}
-
 	@Override
-	public Object createWebSocket(final JettyServerUpgradeRequest request, final JettyServerUpgradeResponse response) {
-
+	public Object createWebSocket(JettyServerUpgradeRequest request, JettyServerUpgradeResponse response) throws Exception {
 		for (String subprotocol : request.getSubProtocols()) {
 
 			if (STRUCTR_PROTOCOL.equals(subprotocol)) {
@@ -64,5 +62,4 @@ public class StructrWebSocketCreator implements JettyWebSocketCreator {
 
 		return null;
 	}
-
 }

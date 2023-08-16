@@ -23,8 +23,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.eclipse.jetty.io.EofException;
 import org.eclipse.jetty.io.QuietException;
+import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.WebSocketListener;
+import org.eclipse.jetty.websocket.api.WebSocketSessionListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.structr.common.AccessMode;
@@ -60,7 +61,7 @@ import java.util.concurrent.TimeoutException;
 /**
  *
  */
-public class StructrWebSocket implements WebSocketListener {
+public class StructrWebSocket implements WebSocketSessionListener {
 
 	private static final Logger logger = LoggerFactory.getLogger(StructrWebSocket.class.getName());
 	private static final Map<String, Class> commandSet = new LinkedHashMap<>();
@@ -91,7 +92,7 @@ public class StructrWebSocket implements WebSocketListener {
 	}
 
 	@Override
-	public void onWebSocketConnect(final Session session) {
+	public void onWebSocketSessionCreated(final Session session) {
 
 		logger.debug("New connection with protocol {}", session.getProtocolVersion());
 
@@ -111,9 +112,13 @@ public class StructrWebSocket implements WebSocketListener {
 	}
 
 	@Override
-	public void onWebSocketClose(final int closeCode, final String message) {
+	public void onWebSocketSessionOpened(Session session) {
+	}
 
-		logger.debug("Connection closed with closeCode {} and message {}", new Object[]{closeCode, message});
+	@Override
+	public void onWebSocketSessionClosed(Session session) {
+
+		logger.debug("Connection closed with session {}", session);
 
 		final Services services = Services.getInstance();
 		if (!services.isInitialized()) {
@@ -146,8 +151,6 @@ public class StructrWebSocket implements WebSocketListener {
 		}
 
 	}
-
-	@Override
 	public void onWebSocketText(final String data) {
 
 		final Services services = Services.getInstance();
@@ -231,9 +234,9 @@ public class StructrWebSocket implements WebSocketListener {
 
 							try {
 								// Workaround to update lastAccessedTime() in Jetty's session via reflection
-								final Method accessMethod = ((org.eclipse.jetty.server.session.Session) session).getClass().getDeclaredMethod("access", long.class);
+								final Method accessMethod = session.getClass().getDeclaredMethod("access", long.class);
 								accessMethod.setAccessible(true);
-								accessMethod.invoke((org.eclipse.jetty.server.session.Session) session, System.currentTimeMillis());
+								accessMethod.invoke(session, System.currentTimeMillis());
 
 							} catch (Exception ex) {
 								logger.error("Access to method Session.access() via reflection failed: ", ex);
@@ -363,26 +366,22 @@ public class StructrWebSocket implements WebSocketListener {
 				securityContext.clearCustomView();
 			}
 
-			if (session != null && session.getRemote() != null) {
+			if (session != null) {
+				session.sendText(msg, new Callback() {
+					@Override
+					public void succeed() {
+						Callback.super.succeed();
+					}
 
-				try {
-
-					session.getRemote().sendString(msg);
-				} catch (ClosedChannelException t) {
-
-					logger.debug("Unable to send websocket message to remote client: Client closed connection before message was sent successfully.");
-				}
-
-			} else {
-
-				logger.warn("Unable to send websocket message - either no session or no remote.");
+					@Override
+					public void fail(Throwable ex) {
+						logger.debug("Unable to send websocket message to remote client: ", ex);
+						Callback.super.fail(ex);
+					}
+				});
 			}
 
 			tx.success();
-
-		} catch (EofException ex) {
-
-			logger.warn("Unable to send websocket message to remote client: Connection might have been terminated before all content was delivered.");
 
 		} catch (Throwable t) {
 
@@ -582,15 +581,5 @@ public class StructrWebSocket implements WebSocketListener {
 		logger.debug("Session ID of security context " + securityContext + " set to " + sessionId);
 
 		timedOut = false;
-	}
-
-	@Override
-	public void onWebSocketBinary(final byte[] bytes, int i, int i1) {
-		throw new UnsupportedOperationException("Not supported yet.");
-	}
-
-	@Override
-	public void onWebSocketError(final Throwable t) {
-		logger.debug("Error in StructrWebSocket occurred", t);
 	}
 }
