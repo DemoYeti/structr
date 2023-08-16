@@ -22,9 +22,9 @@ package org.structr.rest.auth;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jetty.server.session.Session;
-import org.eclipse.jetty.server.session.SessionCache;
-import org.eclipse.jetty.websocket.server.JettyServerUpgradeRequest;
+import org.eclipse.jetty.ee10.websocket.server.JettyServerUpgradeRequest;
+import org.eclipse.jetty.server.Session;
+import org.eclipse.jetty.session.SessionCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.structr.common.error.FrameworkException;
@@ -80,7 +80,7 @@ public class SessionHelper {
 
 	public static HttpSession getSessionBySessionId(final String sessionId) throws FrameworkException {
 
-		return getSessionFromCache(sessionId);
+		return getSessionFromCache(sessionId).getApi();
 	}
 
 	public static void newSession(final HttpServletRequest request) {
@@ -159,7 +159,7 @@ public class SessionHelper {
 
 				Session session = getSessionFromCache(sessionCache, sessionId);
 
-				if (session == null || SessionHelper.isSessionTimedOut(session)) {
+				if (session == null || SessionHelper.isSessionTimedOut(session.getApi())) {
 					SessionHelper.clearSession(sessionId);
 					SessionHelper.invalidateSession(sessionId);
 				}
@@ -368,7 +368,7 @@ public class SessionHelper {
 
 		try {
 
-			return sessionCache.get(sessionId);
+			return sessionCache.get(sessionId).getApi();
 
 		} catch (final Exception ex) {
 			logger.debug("Unable to retrieve session " + sessionId + " from session cache:", ex);

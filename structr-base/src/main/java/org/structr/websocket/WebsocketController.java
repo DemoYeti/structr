@@ -20,6 +20,7 @@ package org.structr.websocket;
 
 import com.google.gson.Gson;
 import org.eclipse.jetty.util.URIUtil;
+import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.exceptions.WebSocketException;
 import org.slf4j.Logger;
@@ -129,24 +130,23 @@ public class WebsocketController implements StructrTransactionListener {
 
 					message = gson.toJson(webSocketData, WebSocketMessage.class);
 				}
+				session.sendText(message, new Callback() {
+					@Override
+					public void fail(Throwable x) {
+						if (x instanceof WebSocketException) {
 
-				try {
+							WebSocketException wse = (WebSocketException) x;
 
-					session.getRemote().sendString(message);
-
-				} catch (Throwable t) {
-
-					if (t instanceof WebSocketException) {
-
-						WebSocketException wse = (WebSocketException) t;
-
-						if ("RemoteEndpoint unavailable, current state [CLOSED], expecting [OPEN or CONNECTED]".equals(wse.getMessage())) {
-							clientsToRemove.add(socket);
+							if ("RemoteEndpoint unavailable, current state [CLOSED], expecting [OPEN or CONNECTED]".equals(wse.getMessage())) {
+								clientsToRemove.add(socket);
+							}
 						}
-					}
 
-					logger.debug("Error sending message to client.", t);
-				}
+						logger.debug("Error sending message to client.", x);
+
+						Callback.super.fail(x);
+					}
+				});
 			}
 		}
 

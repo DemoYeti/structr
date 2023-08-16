@@ -2069,11 +2069,6 @@ public class UiScriptingTest extends StructrUiTest {
 		}
 
 		@Override
-		public boolean isRequestedSessionIdFromUrl() {
-			throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-		}
-
-		@Override
 		public boolean authenticate(HttpServletResponse httpServletResponse) throws IOException, ServletException {
 			return false;
 		}
@@ -2229,11 +2224,6 @@ public class UiScriptingTest extends StructrUiTest {
 		}
 
 		@Override
-		public String getRealPath(String path) {
-			throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-		}
-
-		@Override
 		public int getRemotePort() {
 			throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
 		}
@@ -2287,6 +2277,21 @@ public class UiScriptingTest extends StructrUiTest {
 		public DispatcherType getDispatcherType() {
 			throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
 		}
+
+		@Override
+		public String getRequestId() {
+			throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+		}
+
+		@Override
+		public String getProtocolRequestId() {
+			throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+		}
+
+		@Override
+		public ServletConnection getServletConnection() {
+			throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+		}
 	}
 
 	public class ResponseMockUp implements HttpServletResponse {
@@ -2308,16 +2313,6 @@ public class UiScriptingTest extends StructrUiTest {
 
 		@Override
 		public String encodeRedirectURL(String url) {
-			throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-		}
-
-		@Override
-		public String encodeUrl(String url) {
-			throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-		}
-
-		@Override
-		public String encodeRedirectUrl(String url) {
 			throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
 		}
 
@@ -2368,11 +2363,6 @@ public class UiScriptingTest extends StructrUiTest {
 
 		@Override
 		public void setStatus(int sc) {
-			throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-		}
-
-		@Override
-		public void setStatus(int sc, String sm) {
 			throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
 		}
 
