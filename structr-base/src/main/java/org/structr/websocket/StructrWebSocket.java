@@ -92,7 +92,7 @@ public class StructrWebSocket {
 	}
 
 	@OnWebSocketOpen
-	public void onWebSocketOpen(final Session session) {
+	public void onWebSocketConnect(final Session session) {
 
 		logger.debug("New connection with protocol {}", session.getProtocolVersion());
 
@@ -230,8 +230,10 @@ public class StructrWebSocket {
 
 							session.setMaxInactiveInterval(Services.getGlobalSessionTimeout());
 
+							/* FixMe: Check if this is resolved in current Jetty version
 							try {
 								// Workaround to update lastAccessedTime() in Jetty's session via reflection
+
 								final Method accessMethod = session.getClass().getDeclaredMethod("access", long.class);
 								accessMethod.setAccessible(true);
 								accessMethod.invoke(session, System.currentTimeMillis());
@@ -239,6 +241,7 @@ public class StructrWebSocket {
 							} catch (Exception ex) {
 								logger.error("Access to method Session.access() via reflection failed: ", ex);
 							}
+							*/
 						}
 					}
 				}

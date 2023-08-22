@@ -369,7 +369,7 @@ public class SessionHelper {
 
 		try {
 
-			return sessionCache.get(sessionId).getApi();
+			return sessionCache.get(sessionId);
 
 		} catch (final Exception ex) {
 			logger.debug("Unable to retrieve session " + sessionId + " from session cache:", ex);

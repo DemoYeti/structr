@@ -83,7 +83,6 @@ public class WebSocketServlet extends JettyWebSocketServlet implements HttpServi
 
 		factory.setIdleTimeout(Duration.ofSeconds(60));
 		factory.setCreator(new StructrWebSocketCreator(syncController, gson, config.getAuthenticator()));
-		//factory.register(StructrWebSocket.class);
 
 		// Disable compression (experimental features)
 		// TODO: Check if these are available in Jetty 10
