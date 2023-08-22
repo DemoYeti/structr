@@ -297,19 +297,19 @@ public class HttpService implements RunnableService, StatsCallback {
 		// create resource collection from base path & source JAR
 		try (ResourceFactory.Closeable resourceFactory = ResourceFactory.closeable()){
 
-			servletContext.setBaseResource(
-					ResourceFactory.combine(
-							resourceFactory.newResource(basePath),
-							resourceFactory.newJarFileResource(Path.of(sourceJarName).toUri())
-					)
-			);
+			final Resource baseResource = resourceFactory.newResource(basePath);
+			final Resource jarResource = resourceFactory.newResource(sourceJarName);
+
+			final Resource combinedResource = ResourceFactory.combine(baseResource, jarResource);
+
+			servletContext.setBaseResource(combinedResource);
 		} catch (Throwable t) {
 
 			logger.warn("Base resource {} not usable: {}", basePath, t.getMessage());
 		}
 
 		// this is needed for the filters to work on the root context "/"
-		servletContext.addServlet("org.eclipse.jetty.servlet.DefaultServlet", "/");
+		servletContext.addServlet("org.eclipse.jetty.ee10.servlet.DefaultServlet", "/");
 		servletContext.setInitParameter("org.eclipse.jetty.servlet.Default.dirAllowed", "false");
 
 		if (Settings.ConfigServletEnabled.getValue()) {

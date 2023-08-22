@@ -80,7 +80,8 @@ public class SessionHelper {
 
 	public static HttpSession getSessionBySessionId(final String sessionId) throws FrameworkException {
 
-		return getSessionFromCache(sessionId).getApi();
+		Session session = getSessionFromCache(sessionId);
+		return session != null ? session.getApi() : null;
 	}
 
 	public static void newSession(final HttpServletRequest request) {

@@ -21,11 +21,11 @@ package org.structr.websocket;
 import com.google.gson.Gson;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
-import org.eclipse.jetty.io.EofException;
 import org.eclipse.jetty.io.QuietException;
 import org.eclipse.jetty.websocket.api.Callback;
+import org.eclipse.jetty.websocket.api.Frame;
 import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.WebSocketSessionListener;
+import org.eclipse.jetty.websocket.api.annotations.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.structr.common.AccessMode;
@@ -53,7 +53,6 @@ import org.structr.websocket.message.WebSocketMessage;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.nio.channels.ClosedChannelException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
@@ -61,7 +60,8 @@ import java.util.concurrent.TimeoutException;
 /**
  *
  */
-public class StructrWebSocket implements WebSocketSessionListener {
+@WebSocket
+public class StructrWebSocket {
 
 	private static final Logger logger = LoggerFactory.getLogger(StructrWebSocket.class.getName());
 	private static final Map<String, Class> commandSet = new LinkedHashMap<>();
@@ -91,8 +91,8 @@ public class StructrWebSocket implements WebSocketSessionListener {
 		this.request = request;
 	}
 
-	@Override
-	public void onWebSocketSessionCreated(final Session session) {
+	@OnWebSocketOpen
+	public void onWebSocketOpen(final Session session) {
 
 		logger.debug("New connection with protocol {}", session.getProtocolVersion());
 
@@ -111,14 +111,10 @@ public class StructrWebSocket implements WebSocketSessionListener {
 
 	}
 
-	@Override
-	public void onWebSocketSessionOpened(Session session) {
-	}
+	@OnWebSocketClose
+	public void onWebSocketClose(final int closeCode, final String message) {
 
-	@Override
-	public void onWebSocketSessionClosed(Session session) {
-
-		logger.debug("Connection closed with session {}", session);
+		logger.debug("Connection closed with closeCode {} and message {}", new Object[]{closeCode, message});
 
 		final Services services = Services.getInstance();
 		if (!services.isInitialized()) {
@@ -151,6 +147,8 @@ public class StructrWebSocket implements WebSocketSessionListener {
 		}
 
 	}
+
+	@OnWebSocketMessage
 	public void onWebSocketText(final String data) {
 
 		final Services services = Services.getInstance();
@@ -581,5 +579,17 @@ public class StructrWebSocket implements WebSocketSessionListener {
 		logger.debug("Session ID of security context " + securityContext + " set to " + sessionId);
 
 		timedOut = false;
+	}
+
+	/*
+	@OnWebSocketFrame
+	public void onWebSocketFrame(final Session session, final Frame frame, final Callback callback) {
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
+	 */
+
+	@OnWebSocketError
+	public void onWebSocketError(final Throwable t) {
+		logger.debug("Error in StructrWebSocket occurred", t);
 	}
 }
