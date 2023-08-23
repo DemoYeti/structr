@@ -229,19 +229,6 @@ public class StructrWebSocket {
 						if (session != null) {
 
 							session.setMaxInactiveInterval(Services.getGlobalSessionTimeout());
-
-							/* FixMe: Check if this is resolved in current Jetty version
-							try {
-								// Workaround to update lastAccessedTime() in Jetty's session via reflection
-
-								final Method accessMethod = session.getClass().getDeclaredMethod("access", long.class);
-								accessMethod.setAccessible(true);
-								accessMethod.invoke(session, System.currentTimeMillis());
-
-							} catch (Exception ex) {
-								logger.error("Access to method Session.access() via reflection failed: ", ex);
-							}
-							*/
 						}
 					}
 				}

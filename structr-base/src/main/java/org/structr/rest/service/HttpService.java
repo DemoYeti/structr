@@ -311,7 +311,7 @@ public class HttpService implements RunnableService, StatsCallback {
 
 		// this is needed for the filters to work on the root context "/"
 		servletContext.addServlet("org.eclipse.jetty.ee10.servlet.DefaultServlet", "/");
-		servletContext.setInitParameter("org.eclipse.jetty.servlet.Default.dirAllowed", "false");
+		servletContext.setInitParameter("dirAllowed", "false");
 
 		if (Settings.ConfigServletEnabled.getValue()) {
 

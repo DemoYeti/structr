@@ -84,14 +84,7 @@ public class WebSocketServlet extends JettyWebSocketServlet implements HttpServi
 		factory.setIdleTimeout(Duration.ofSeconds(60));
 		factory.setCreator(new StructrWebSocketCreator(syncController, gson, config.getAuthenticator()));
 
-		// Disable compression (experimental features)
-		// TODO: Check if these are available in Jetty 10
-		//factory.getExtensionFactory().unregister("x-webkit-deflate-frame");
-		//factory.getExtensionFactory().unregister("permessage-deflate");
-
 		factory.setMaxTextMessageSize(MAX_TEXT_MESSAGE_SIZE);
-
-
 	}
 
 	@Override
