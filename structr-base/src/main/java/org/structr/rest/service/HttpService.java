@@ -27,6 +27,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.apache.xerces.util.URI;
 import org.eclipse.jetty.alpn.server.ALPNServerConnectionFactory;
 import org.eclipse.jetty.ee10.annotations.AnnotationParser;
 import org.eclipse.jetty.ee10.servlet.ErrorHandler;
@@ -298,7 +299,7 @@ public class HttpService implements RunnableService, StatsCallback {
 		try (ResourceFactory.Closeable resourceFactory = ResourceFactory.closeable()){
 
 			final Resource baseResource = resourceFactory.newResource(basePath);
-			final Resource jarResource = resourceFactory.newResource(sourceJarName);
+			final Resource jarResource = resourceFactory.newJarFileResource(new java.net.URI(sourceJarName));
 
 			final Resource combinedResource = ResourceFactory.combine(baseResource, jarResource);
 
