@@ -631,7 +631,7 @@ public class HttpService implements RunnableService, StatsCallback {
 				final ResourceHandler resourceHandler = new RedirectingResourceHandler();
 				resourceHandler.setDirAllowed(false);
 
-				resourceHandler.setBaseResourceAsString(resourceBase);
+				resourceHandler.setBaseResource(ResourceFactory.of(resourceHandler).newResource(resourceBase));
 				resourceHandler.setCacheControl("max-age=0");
 
 				final ContextHandler staticResourceHandler = new ContextHandler();
@@ -830,7 +830,7 @@ public class HttpService implements RunnableService, StatsCallback {
 								resourceHandler.setWelcomeFiles(StringUtils.split(welcomeFiles));
 							}
 
-							resourceHandler.setBaseResourceAsString(resourceBase);
+							resourceHandler.setBaseResource(ResourceFactory.of(resourceHandler).newResource(resourceBase));
 							resourceHandler.setCacheControl("max-age=0");
 							//resourceHandler.setEtags(true);
 
