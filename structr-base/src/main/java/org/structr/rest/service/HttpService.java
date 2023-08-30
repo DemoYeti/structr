@@ -20,23 +20,19 @@ package org.structr.rest.service;
 
 
 import jakarta.servlet.DispatcherType;
-import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.apache.xerces.util.URI;
 import org.eclipse.jetty.alpn.server.ALPNServerConnectionFactory;
-import org.eclipse.jetty.ee10.annotations.AnnotationParser;
 import org.eclipse.jetty.ee10.servlet.ErrorHandler;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.ee10.websocket.server.config.JettyWebSocketServletContainerInitializer;
 import org.eclipse.jetty.http.HttpCookie;
 import org.eclipse.jetty.http.HttpMethod;
-import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.http.UriCompliance;
 import org.eclipse.jetty.http2.WindowRateControl;
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
@@ -50,7 +46,6 @@ import org.eclipse.jetty.session.DefaultSessionCache;
 import org.eclipse.jetty.session.DefaultSessionIdManager;
 import org.eclipse.jetty.session.SessionCache;
 import org.eclipse.jetty.util.Callback;
-import org.eclipse.jetty.util.resource.CombinedResource;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceFactory;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -69,7 +64,6 @@ import org.structr.schema.SchemaService;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -94,15 +88,16 @@ public class HttpService implements RunnableService, StatsCallback {
 	}
 
 	private final Map<String, Map<String, Stats>> stats = new LinkedHashMap<>();
-	private DefaultSessionCache sessionCache      = null;
-	private GzipHandler gzipHandler               = null;
-	private HttpConfiguration httpConfig          = null;
-	private HttpConfiguration httpsConfig         = null;
-	private SslContextFactory.Server sslContextFactory = null;
-	private Server server                         = null;
-	private Server maintenanceServer              = null;
-	private int requestHeaderSize                 = 8192;
-	private boolean httpsActive                   = false;
+	private DefaultSessionCache sessionCache                    = null;
+	private GzipHandler gzipHandler                             = null;
+	private ServletContextHandler servletContextHandler         = null;
+	private HttpConfiguration httpConfig                        = null;
+	private HttpConfiguration httpsConfig                       = null;
+	private SslContextFactory.Server sslContextFactory          = null;
+	private Server server                                       = null;
+	private Server maintenanceServer                            = null;
+	private int requestHeaderSize                               = 8192;
+	private boolean httpsActive                                 = false;
 
 	static {
 
@@ -276,11 +271,11 @@ public class HttpService implements RunnableService, StatsCallback {
 
 		final ContextHandlerCollection contexts = new ContextHandlerCollection();
 
-		final ServletContextHandler servletContext = new ServletContextHandler(contextPath, true, true);
+		servletContextHandler = new ServletContextHandler(contextPath, true, true);
 		final ErrorHandler errorHandler = new ErrorHandler();
 
 		errorHandler.setShowStacks(false);
-		servletContext.setErrorHandler(errorHandler);
+		servletContextHandler.setErrorHandler(errorHandler);
 
 		if (enableGzipCompression) {
 			gzipHandler = new GzipHandler();
@@ -291,7 +286,7 @@ public class HttpService implements RunnableService, StatsCallback {
 			gzipHandler.addIncludedPaths("/*");
 		}
 
-		servletContext.insertHandler(gzipHandler);
+		servletContextHandler.insertHandler(gzipHandler);
 
 		final List<Connector> connectors = new LinkedList<>();
 
@@ -303,23 +298,23 @@ public class HttpService implements RunnableService, StatsCallback {
 
 			final Resource combinedResource = ResourceFactory.combine(baseResource, jarResource);
 
-			servletContext.setBaseResource(combinedResource);
+			servletContextHandler.setBaseResource(combinedResource);
 		} catch (Throwable t) {
 
 			logger.warn("Base resource {} not usable: {}", basePath, t.getMessage());
 		}
 
 		// this is needed for the filters to work on the root context "/"
-		servletContext.addServlet("org.eclipse.jetty.ee10.servlet.DefaultServlet", "/");
-		servletContext.setInitParameter("dirAllowed", "false");
+		servletContextHandler.addServlet("org.eclipse.jetty.ee10.servlet.DefaultServlet", "/");
+		servletContextHandler.setInitParameter("dirAllowed", "false");
 
 		if (Settings.ConfigServletEnabled.getValue()) {
 
 			// configuration wizard entry point
-			servletContext.addServlet("org.structr.rest.servlet.ConfigServlet", "/structr/config/*");
+			servletContextHandler.addServlet("org.structr.rest.servlet.ConfigServlet", "/structr/config/*");
 		}
 
-		sessionCache = new DefaultSessionCache(servletContext.getSessionHandler());
+		sessionCache = new DefaultSessionCache(servletContextHandler.getSessionHandler());
 
 		if (licenseManager != null) {
 
@@ -328,17 +323,17 @@ public class HttpService implements RunnableService, StatsCallback {
 			DefaultSessionIdManager idManager = new DefaultSessionIdManager(server, new SecureRandom(hardwareId.getBytes()));
 			idManager.setWorkerName(hardwareId);
 
-			servletContext.getSessionHandler().setSessionIdManager(idManager);
+			servletContextHandler.getSessionHandler().setSessionIdManager(idManager);
 		}
 
 		// configure the HttpOnly flag for JSESSIONID cookie
-		servletContext.getSessionHandler().setHttpOnly(Settings.HttpOnly.getValue());
+		servletContextHandler.getSessionHandler().setHttpOnly(Settings.HttpOnly.getValue());
 
 		// configure the SameSite attribute for JSESSIONID cookie
-		servletContext.getSessionHandler().setSameSite(HttpCookie.SameSite.valueOf(Settings.CookieSameSite.getValue().toUpperCase()));
+		servletContextHandler.getSessionHandler().setSameSite(HttpCookie.SameSite.valueOf(Settings.CookieSameSite.getValue().toUpperCase()));
 
 		// configure the Secure flag for JSESSIONID cookie
-		servletContext.getSessionHandler().getSessionCookieConfig().setSecure(Settings.CookieSecure.getValue());
+		servletContextHandler.getSessionHandler().getSessionCookieConfig().setSecure(Settings.CookieSecure.getValue());
 
 		final StructrSessionDataStore sessionDataStore = new StructrSessionDataStore();
 
@@ -348,8 +343,8 @@ public class HttpService implements RunnableService, StatsCallback {
 		sessionCache.setEvictionPolicy(60);
 
 		// make sessions "immortal" from the session handlers POV (we handle timeout)
-		servletContext.getSessionHandler().setMaxInactiveInterval(-1);
-		servletContext.getSessionHandler().setSessionCache(sessionCache);
+		servletContextHandler.getSessionHandler().setMaxInactiveInterval(-1);
+		servletContextHandler.getSessionHandler().setSessionCache(sessionCache);
 
 		// enable request logging
 		if (logRequests) {
@@ -389,17 +384,17 @@ public class HttpService implements RunnableService, StatsCallback {
 
 			logger.info("Adding servlet {} for {}", servletHolder, path);
 
-			servletContext.addServlet(servletHolder, path);
-			JettyWebSocketServletContainerInitializer.configure(servletContext, null);
+			servletContextHandler.addServlet(servletHolder, path);
+			JettyWebSocketServletContainerInitializer.configure(servletContextHandler, null);
 		}
 
 		// only add metrics filter if metrics servlet is enabled
 		if (Settings.Servlets.getValue("").contains(MetricsServlet.class.getSimpleName())) {
-			servletContext.addFilter(MetricsFilter.class, "/*", EnumSet.allOf(DispatcherType.class));
+			servletContextHandler.addFilter(MetricsFilter.class, "/*", EnumSet.allOf(DispatcherType.class));
 		}
 
 		// Always add servletContext last because it's terminal in the resource chain
-		contexts.addHandler(servletContext);
+		contexts.addHandler(servletContextHandler);
 
 		if (enableRewriteFilter) {
 
@@ -511,7 +506,7 @@ public class HttpService implements RunnableService, StatsCallback {
 					http2.setRateControlFactory(new WindowRateControl.Factory(Settings.HttpConnectionRateLimit.getValue()));
 
 					if (forceHttps) {
-						servletContext.getSessionHandler().setSecureRequestOnly(true);
+						servletContextHandler.getSessionHandler().setSecureRequestOnly(true);
 					}
 
 					ALPNServerConnectionFactory alpn = new ALPNServerConnectionFactory();
@@ -631,7 +626,7 @@ public class HttpService implements RunnableService, StatsCallback {
 				final ResourceHandler resourceHandler = new RedirectingResourceHandler();
 				resourceHandler.setDirAllowed(false);
 
-				resourceHandler.setBaseResource(ResourceFactory.of(resourceHandler).newResource(resourceBase));
+				resourceHandler.setBaseResource(servletContextHandler.getBaseResource().resolve(resourceBase));
 				resourceHandler.setCacheControl("max-age=0");
 
 				final ContextHandler staticResourceHandler = new ContextHandler();
@@ -830,9 +825,8 @@ public class HttpService implements RunnableService, StatsCallback {
 								resourceHandler.setWelcomeFiles(StringUtils.split(welcomeFiles));
 							}
 
-							resourceHandler.setBaseResource(ResourceFactory.of(resourceHandler).newResource(resourceBase));
+							resourceHandler.setBaseResource(servletContextHandler.getBaseResource().resolve(resourceBase));
 							resourceHandler.setCacheControl("max-age=0");
-							//resourceHandler.setEtags(true);
 
 							final ContextHandler staticResourceHandler = new ContextHandler();
 							staticResourceHandler.setContextPath(contextPath);
