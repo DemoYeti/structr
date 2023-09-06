@@ -2230,7 +2230,7 @@ th.center {
 	max-height: 100vh;
 }
 
-#info-area .message {
+#info-area .message-text {
 	max-height: 75vh;
 }
 
@@ -3594,6 +3594,7 @@ table#principals .typeIcon {
 	border-radius: 0.5rem;
 	min-width: 7rem;
 	display: inline-block;
+	position: relative;
 }
 
 .events-container .node:hover {
@@ -4371,12 +4372,6 @@ ul.combined-input-select-field li:hover {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-}
-.overflow-ellipsis {
-	text-overflow: ellipsis;
-}
-.overflow-clip {
-	text-overflow: clip;
 }
 .leading-8 {
 	line-height: 2rem;

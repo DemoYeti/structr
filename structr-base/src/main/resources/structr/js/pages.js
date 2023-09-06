@@ -36,6 +36,8 @@ let _Pages = {
 	pagesResizerRightKey: 'structrPagesResizerRightKey_' + location.port,
 	functionBarSwitchKey: 'structrFunctionBarSwitchKey_' + location.port,
 
+	dropzoneDropAllowedClass: 'allow-drop',
+
 	shadowPage: undefined,
 
 	pagesSlideout: undefined,
@@ -1325,7 +1327,7 @@ let _Pages = {
 	},
 	leftSlideoutClosedCallback: () => {
 
-		LSWrapper.removeItem(_Pages.activeTabLeftKey);
+		LSWrapper.setItem(_Pages.activeTabLeftKey, 'NONE');
 		Structr.resize();
 	},
 	rightSlideoutClosedCallback: () => {
@@ -1348,6 +1350,15 @@ let _Pages = {
 		}
 
 		LSWrapper.setItem(_Entities.selectedObjectIdKey, id);
+	},
+	highlightDropZone: (dropzone) => {
+		dropzone?.classList.add(_Pages.dropzoneDropAllowedClass);
+	},
+	unhighlightDropZone: (dropzone) => {
+		dropzone?.classList.remove(_Pages.dropzoneDropAllowedClass);
+	},
+	isDropAllowed: (dropzone) => {
+		return (dropzone?.classList.contains(_Pages.dropzoneDropAllowedClass) ?? false);
 	},
 	eventActionMappingDialog: (entity, container, typeInfo) => {
 
@@ -1709,7 +1720,7 @@ let _Pages = {
 				const inputElement    = parentElement.querySelector('#success-partial-refresh-linked-input');
 
 				dropzoneElement.querySelectorAll('.node').forEach(n => n.remove());
-				activateElementDropzone(parentElement, dropzoneElement, inputElement, 'reloadingActions');
+				activateElementDropzone(parentElement, dropzoneElement, inputElement, 'reloadingActions', 'successTargets');
 
 				Command.get(actionMapping.id, 'id,successTargets', actionMapping => {
 					for (const successTarget of actionMapping.successTargets) {
@@ -1728,7 +1739,7 @@ let _Pages = {
 				const inputElement    = parentElement.querySelector('#failure-partial-refresh-linked-input');
 
 				dropzoneElement.querySelectorAll('.node').forEach(n => n.remove());
-				activateElementDropzone(parentElement, dropzoneElement, inputElement, 'failureActions');
+				activateElementDropzone(parentElement, dropzoneElement, inputElement, 'failureActions', 'failureTargets');
 
 				Command.get(actionMapping.id, 'id,failureTargets', actionMapping => {
 					for (const failureTarget of actionMapping.failureTargets) {
@@ -1747,7 +1758,7 @@ let _Pages = {
 				const inputElement    = parentElement.querySelector('#success-notifications-custom-dialog-linked-input');
 
 				dropzoneElement.querySelectorAll('.node').forEach(n => n.remove());
-				activateElementDropzone(parentElement, dropzoneElement, inputElement, 'successNotificationActions');
+				activateElementDropzone(parentElement, dropzoneElement, inputElement, 'successNotificationActions', 'successNotificationElements');
 
 				Command.get(actionMapping.id, 'id,successNotificationElements', actionMapping => {
 					for (const successNotificationElement of actionMapping.successNotificationElements) {
@@ -1766,7 +1777,7 @@ let _Pages = {
 				const inputElement    = parentElement.querySelector('#failure-notifications-custom-dialog-linked-input');
 
 				dropzoneElement.querySelectorAll('.node').forEach(n => n.remove());
-				activateElementDropzone(parentElement, dropzoneElement, inputElement, 'failureNotificationActions');
+				activateElementDropzone(parentElement, dropzoneElement, inputElement, 'failureNotificationActions', 'failureNotificationElements');
 
 				Command.get(actionMapping.id, 'id,failureNotificationElements', actionMapping => {
 					for (const failureNotificationElement of actionMapping.failureNotificationElements) {
@@ -1778,63 +1789,45 @@ let _Pages = {
 			}
 		};
 
-		const activateElementDropzone = (parentElement, dropzoneElement, inputElement, propertyKey) => {
+		const activateElementDropzone = (parentElement, dropzoneElement, inputElement, actionsPropertyKey, elementsPropertyKey) => {
 
 			if (dropzoneElement) {
 
-				$(dropzoneElement).droppable({
+				_Dragndrop.pages.enableEventMappingDroppable(entity, dropzoneElement, ({ draggedEntity }) => {
 
-					drop: (e, el) => {
+					let obj = StructrModel.obj(draggedEntity.id);
 
-						e.preventDefault();
-						e.stopPropagation();
-
-						let sourceEl = $(el.draggable);
-						let sourceId = Structr.getId(sourceEl);
-
-						if (!sourceId) {
-							return false;
-						}
-
-						let obj = StructrModel.obj(sourceId);
-
-						// Ignore shared components
-						if (obj && obj.syncedNodesIds && obj.syncedNodesIds.length || sourceEl.parent().attr('id') === 'componentsArea') {
-							return false;
-						}
-
-						// Ignore already linked elements
-						if (dropzoneElement.querySelector('.node._' + obj.id)) {
-							return false;
-						}
-
-						inputElement.value = sourceId;
-						_Elements.dropBlocked = false;
-
-						const newCollection = [...obj[propertyKey]];
-						newCollection.push({ id: actionMapping.id });
-
-						Command.setProperty(obj.id, propertyKey, newCollection);
-
-						addLinkedElementToDropzone(parentElement, dropzoneElement, obj, propertyKey);
-
+					// Ignore already linked elements
+					if (dropzoneElement.querySelector('.node._' + obj.id)) {
+						return false;
 					}
+
+					inputElement.value = draggedEntity.id;
+
+					const newCollection = [...obj[actionsPropertyKey]];
+					newCollection.push({ id: actionMapping.id });
+
+					Command.setProperty(obj.id, actionsPropertyKey, newCollection);
+
+					addLinkedElementToDropzone(parentElement, dropzoneElement, obj, elementsPropertyKey);
 				});
 			}
 		};
 
 		const addLinkedElementToDropzone = (parentElement, dropzoneElement, obj, propertyKey) => {
 			_Entities.insertRelatedNode(dropzoneElement, obj, (nodeEl) => {
-				$('.remove', nodeEl).on('click', function(e) {
+
+				nodeEl.querySelector('.remove')?.addEventListener('click' , (e) => {
 					e.preventDefault();
 					e.stopPropagation();
-					parentElement.querySelector('._' + obj.id).remove();
-					dropzoneElement.classList.remove('hidden');
-					Command.get(actionMapping.id, 'id,' + propertyKey, actionMapping => {
-						Command.setProperty(actionMapping.id, propertyKey, actionMapping[propertyKey] = actionMapping[propertyKey].filter(t => t.id !== obj.id));
+					Command.get(actionMapping.id, 'id,' + propertyKey, data => {
+						Command.setProperty(actionMapping.id, propertyKey, data[propertyKey] = data[propertyKey].filter(t => t.id !== obj.id), null, () => {
+							parentElement.querySelector('._' + obj.id).remove();
+							dropzoneElement.classList.remove('hidden');
+						});
 					});
-
 				});
+
 			}, 'afterbegin');
 		};
 
@@ -1889,17 +1882,23 @@ let _Pages = {
 		};
 
 		const replaceDropzoneByUserInputElement = (rowElement, obj) => {
+
 			const userInputArea = rowElement.querySelector('.parameter-user-input');
+			const hiddenUserInputInput = rowElement.querySelector('.parameter-user-input-input');
+			hiddenUserInputInput.value = obj.id;
+
+			const dropzoneElement = userInputArea.querySelector('.link-existing-element-dropzone');
 			_Entities.appendRelatedNode($(userInputArea), obj, (nodeEl) => {
-				$('.remove', nodeEl).on('click', function(e) {
+				nodeEl[0].querySelector('.remove')?.addEventListener('click', (e) => {
 					e.preventDefault();
 					e.stopPropagation();
-					userInputArea.querySelector('.node').remove();
+					_Helpers.fastRemoveElement(userInputArea.querySelector('.node'));
 					dropzoneElement.classList.remove('hidden');
+					hiddenUserInputInput.value = '';
 					saveParameterMappings(dropzoneElement);
-				});
+				})
 			});
-			const dropzoneElement = userInputArea.querySelector('.link-existing-element-dropzone');
+
 			dropzoneElement.classList.add('hidden');
 			saveParameterMappings(dropzoneElement);
 		};
@@ -1918,43 +1917,26 @@ let _Pages = {
 
 			const dropzoneElement = parentElement.querySelector('.link-existing-element-dropzone');
 
-			if (dropzoneElement) {
+			if (dropzoneElement && dropzoneElement.dataset['hasDropHandler'] !== 'true') {
 
-				$(dropzoneElement).droppable({
+				dropzoneElement.dataset['hasDropHandler'] = true;
 
-					drop: (e, el) => {
+				_Dragndrop.pages.enableEventMappingDroppable(entity, dropzoneElement, ({ draggedEntity }) => {
 
-						e.preventDefault();
-						e.stopPropagation();
+					let obj = StructrModel.obj(draggedEntity.id);
 
-						let sourceEl = $(el.draggable);
-						let sourceId = Structr.getId(sourceEl);
+					parentElement.querySelector('.parameter-user-input-input').value = draggedEntity.id;
 
-						if (!sourceId) {
-							return false;
+					let userInputName = obj['_html_name'];
+					if (userInputName) {
+
+						let parameterNameInput = parentElement.querySelector('.parameter-name-input');
+						if (parameterNameInput.value === '') {
+							parameterNameInput.value = userInputName;
 						}
-
-						let obj = StructrModel.obj(sourceId);
-
-						// Ignore shared components
-						if (obj && obj.syncedNodesIds && obj.syncedNodesIds.length || sourceEl.parent().attr('id') === 'componentsArea') {
-							return false;
-						}
-
-						parentElement.querySelector('.parameter-user-input-input').value = sourceId;
-						_Elements.dropBlocked = false;
-
-						let userInputName = obj['_html_name'];
-						if (userInputName) {
-
-							let parameterNameInput = parentElement.querySelector('.parameter-name-input');
-							if (parameterNameInput.value === '') {
-								parameterNameInput.value = userInputName;
-							}
-						}
-
-						replaceDropzoneByUserInputElement(parentElement, obj);
 					}
+
+					replaceDropzoneByUserInputElement(parentElement, obj);
 				});
 			}
 		};
@@ -2051,10 +2033,10 @@ let _Pages = {
 					for (const inp of parameterMappingElement.querySelectorAll(inputDefinition.selector)) {
 
 						const value = inp.value;
-						if (value) {
+						//if (value) {
 							//console.log(inputDefinition.key, value);
 							parameterMappingData[inputDefinition.key] = value;
-						}
+						//}
 					}
 				}
 
@@ -3270,7 +3252,6 @@ let _Pages = {
 	},
 
 	sharedComponents: {
-		allowDropClass: 'allow-drop',
 		reload: (isReloadFromDragEvent = false) => {
 
 			if (!_Pages.componentsSlideout) return;
@@ -3320,13 +3301,13 @@ let _Pages = {
 			return (node.closest('#componentsArea') !== null);
 		},
 		highlightNewSharedComponentDropZone: () => {
-			_Pages.sharedComponents.getNewSharedComponentDropzone()?.classList.add(_Pages.sharedComponents.allowDropClass);
+			_Pages.highlightDropZone(_Pages.sharedComponents.getNewSharedComponentDropzone())
 		},
 		unhighlightNewSharedComponentDropZone: () => {
-			_Pages.sharedComponents.getNewSharedComponentDropzone()?.classList.remove(_Pages.sharedComponents.allowDropClass);
+			_Pages.unhighlightDropZone(_Pages.sharedComponents.getNewSharedComponentDropzone())
 		},
 		isDropAllowed: () => {
-			return _Pages.sharedComponents.getNewSharedComponentDropzone()?.classList.contains(_Pages.sharedComponents.allowDropClass) ?? false;
+			return _Pages.isDropAllowed(_Pages.sharedComponents.getNewSharedComponentDropzone());
 		}
 	},
 
@@ -3985,8 +3966,9 @@ let _Pages = {
 									<input type="hidden" id="success-notifications-custom-dialog-linked-input" value="">
 									<div class="element-dropzone success-notifications-custom-dialog-linked-dropzone">
 										<div class="info-icon h-16 flex items-center justify-center">
-											<i class="m-2 active align-middle">${_Icons.getSvgIcon(_Icons.iconAdd)}</i>
-											<i class="m-2 inactive align-middle">${_Icons.getSvgIcon(_Icons.iconAdd)}</i> Drag and drop existing element here 
+											${_Icons.getSvgIcon(_Icons.iconAdd, 16, 16, _Icons.getSvgIconClassesForColoredIcon(['m-2', 'active', 'icon-green', 'flex-none']))}
+											${_Icons.getSvgIcon(_Icons.iconAdd, 16, 16, ['m-2', 'inactive', 'flex-none'])}
+											Drag and drop existing element here
 										</div>
 									</div>
 								</div>
@@ -3998,7 +3980,7 @@ let _Pages = {
 							</div>
 
 							<div class="grid grid-cols-2 gap-8 mt-4">
-							
+
 								<div>
 									<label class="block mb-2" for="failure-notifications-select" data-comment="Define what kind of notifications should be displayed on failure">Failure notifications</label>
 									<select class="select2" id="failure-notifications-select">
@@ -4021,8 +4003,9 @@ let _Pages = {
 									<input type="hidden" id="failure-notifications-custom-dialog-linked-input" value="">
 									<div class="element-dropzone failure-notifications-custom-dialog-linked-dropzone">
 										<div class="info-icon h-16 flex items-center justify-center">
-											<i class="m-2 active align-middle">${_Icons.getSvgIcon(_Icons.iconAdd)}</i>
-											<i class="m-2 inactive align-middle">${_Icons.getSvgIcon(_Icons.iconAdd)}</i> Drag and drop existing element here 
+											${_Icons.getSvgIcon(_Icons.iconAdd, 16, 16, _Icons.getSvgIconClassesForColoredIcon(['m-2', 'active', 'icon-green', 'flex-none']))}
+											${_Icons.getSvgIcon(_Icons.iconAdd, 16, 16, ['m-2', 'inactive', 'flex-none'])}
+											Drag and drop existing element here
 										</div>
 									</div>
 								</div>
@@ -4033,7 +4016,7 @@ let _Pages = {
 								</div>
 							</div>
 						</div>
-						
+
 						<div class="col-span-2 hidden em-action-element em-action-any">
 							<h3>Follow-up Actions</h3>
 							<div class="grid grid-cols-2 gap-8">
@@ -4061,8 +4044,9 @@ let _Pages = {
 									<input type="hidden" id="success-partial-refresh-linked-input" value="">
 									<div class="element-dropzone success-partial-refresh-linked-dropzone">
 										<div class="info-icon h-16 flex items-center justify-center">
-											<i class="m-2 active align-middle">${_Icons.getSvgIcon(_Icons.iconAdd)}</i>
-											<i class="m-2 inactive align-middle">${_Icons.getSvgIcon(_Icons.iconAdd)}</i> Drag and drop existing element here 
+											${_Icons.getSvgIcon(_Icons.iconAdd, 16, 16, _Icons.getSvgIconClassesForColoredIcon(['m-2', 'active', 'icon-green', 'flex-none']))}
+											${_Icons.getSvgIcon(_Icons.iconAdd, 16, 16, ['m-2', 'inactive', 'flex-none'])}
+											Drag and drop existing element here
 										</div>
 									</div>
 								</div>
@@ -4102,8 +4086,9 @@ let _Pages = {
 									<input type="hidden" id="failure-partial-refresh-linked-input" value="">
 									<div class="element-dropzone failure-partial-refresh-linked-dropzone">
 										<div class="info-icon h-16 flex items-center justify-center">
-											<i class="m-2 active align-middle">${_Icons.getSvgIcon(_Icons.iconAdd)}</i>
-											<i class="m-2 inactive align-middle">${_Icons.getSvgIcon(_Icons.iconAdd)}</i> Drag and drop existing element here 
+											${_Icons.getSvgIcon(_Icons.iconAdd, 16, 16, _Icons.getSvgIconClassesForColoredIcon(['m-2', 'active', 'icon-green', 'flex-none']))}
+											${_Icons.getSvgIcon(_Icons.iconAdd, 16, 16, ['m-2', 'inactive', 'flex-none'])}
+											Drag and drop existing element here
 										</div>
 									</div>
 								</div>
@@ -4168,8 +4153,9 @@ let _Pages = {
 						<input type="hidden" class="parameter-user-input-input" value="${config.value || ''}">
 						<div class="element-dropzone link-existing-element-dropzone">
 							<div class="info-icon h-16 flex items-center justify-center">
-								<i class="m-2 active align-middle">${_Icons.getSvgIcon(_Icons.iconAdd)}</i>
-								<i class="m-2 inactive align-middle">${_Icons.getSvgIcon(_Icons.iconAdd)}</i> Drag and drop existing form input element here 
+								${_Icons.getSvgIcon(_Icons.iconAdd, 16, 16, _Icons.getSvgIconClassesForColoredIcon(['m-2', 'active', 'icon-green', 'flex-none']))}
+								${_Icons.getSvgIcon(_Icons.iconAdd, 16, 16, ['m-2', 'inactive', 'flex-none'])}
+								Drag and drop existing form input element here
 							</div>
 						</div>
 					</div>
@@ -4196,8 +4182,9 @@ let _Pages = {
 				<!--div class="hidden em-action-element em-action-create em-action-update">
 					<div id="link-existing-element-dropzone" class="element-dropzone">
 						<div class="info-icon h-16 flex items-center justify-center">
-							${_Icons.getSvgIcon(_Icons.iconAdd, 16, 16, ['m-2', 'active'])}
-							${_Icons.getSvgIcon(_Icons.iconAdd, 16, 16, ['m-2', 'active'])} Drop existing input or select elements here
+							${_Icons.getSvgIcon(_Icons.iconAdd, 16, 16, _Icons.getSvgIconClassesForColoredIcon(['m-2', 'active', 'icon-green', 'flex-none']))}
+							${_Icons.getSvgIcon(_Icons.iconAdd, 16, 16, ['m-2', 'inactive', 'flex-none'])}
+							Drop existing input or select elements here
 						</div>
 					</div>
 				</div>
