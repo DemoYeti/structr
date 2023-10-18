@@ -852,7 +852,7 @@ let _Files = {
 
 				Command.getPromise(id, null).then(obj => {
 					let ctxMenuContainer = _Files.getFolderContentsElement().querySelector('.context-menu-container');
-					_Entities.appendContextMenuIcon($(ctxMenuContainer), obj, true);
+					_Entities.appendContextMenuIcon(ctxMenuContainer, obj, true);
 				});
 			}
 
@@ -941,7 +941,7 @@ let _Files = {
 				<tr id="${rowId}" class="row${(d.isThumbnail ? ' thumbnail' : '')}">
 					${getIconColumnHTML()}
 					<td>
-						<div id="id_${d.id}" class="node ${d.isFolder ? 'folder' : 'file'} flex items-center justify-between" draggable="true">
+						<div id="id_${d.id}" class="node ${d.isFolder ? 'folder' : 'file'} flex items-center justify-between relative" draggable="true">
 							<b class="name_ leading-8 truncate">${name}</b>
 							<div class="icons-container flex items-center"></div>
 							${d.isFolder ? '' : progressIndicatorHTML}
@@ -1055,7 +1055,7 @@ let _Files = {
 		_Dragndrop.files.enableDroppable(d, div[0]);
 
 		let iconsContainer = $('.icons-container', div);
-		_Entities.appendContextMenuIcon(iconsContainer, d);
+		_Entities.appendContextMenuIcon(iconsContainer[0], d);
 		_Entities.appendNewAccessControlIcon(iconsContainer, d, false);
 
 		if (d.isFile) {
