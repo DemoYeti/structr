@@ -53,8 +53,8 @@ public class ConsoleTest extends StructrUiTest {
 			assertEquals("Invalid console execution result", "Mode set to 'AdminShell'. Type 'help' to get a list of commands.\r\n", console.runForTest("Console.setMode('" + ConsoleMode.AdminShell.name() + "')"));
 			assertEquals("Invalid console execution result", "Mode set to 'REST'. Type 'help' to get a list of commands.\r\n", console.runForTest("Console.setMode('" + ConsoleMode.REST.name() + "')"));
 
-
 		} catch (FrameworkException fex) {
+
 			fail("Unexpected exception.");
 			logger.warn("", fex);
 		}
@@ -151,8 +151,8 @@ public class ConsoleTest extends StructrUiTest {
 
 		final Console console = new Console(securityContext, ConsoleMode.JavaScript, Collections.emptyMap());
 
-		final int nodeCount           = 1838;
-		final int relCount            = 2850;
+		final int nodeCount           = 1830;
+		final int relCount            = 2838;
 		final int resourceAccessCount = 0;
 		final int typedNodeCount      = 669;
 

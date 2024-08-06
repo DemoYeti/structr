@@ -98,7 +98,6 @@ public interface DOMNode extends NodeInterface, Node, Renderable, DOMAdoptable, 
 
 		type.addStringProperty("dataKey").setIndexed(true).setCategory(QUERY_CATEGORY);
 		type.addStringProperty("cypherQuery").setCategory(QUERY_CATEGORY);
-		type.addStringProperty("xpathQuery").setCategory(QUERY_CATEGORY);
 		type.addStringProperty("restQuery").setCategory(QUERY_CATEGORY);
 		type.addStringProperty("functionQuery").setCategory(QUERY_CATEGORY);
 
@@ -112,9 +111,6 @@ public interface DOMNode extends NodeInterface, Node, Renderable, DOMAdoptable, 
 		type.addStringProperty("data-structr-id").setHint("Set to ${current.id} most of the time").setCategory(PAGE_CATEGORY);
 		type.addStringProperty("data-structr-hash").setCategory(PAGE_CATEGORY);
 
-		type.addBooleanProperty("renderDetails").setCategory(QUERY_CATEGORY);
-		type.addBooleanProperty("hideOnIndex").setCategory(QUERY_CATEGORY);
-		type.addBooleanProperty("hideOnDetail").setCategory(QUERY_CATEGORY);
 		type.addBooleanProperty("dontCache").setDefaultValue("false");
 		type.addBooleanProperty("isDOMNode").setReadOnly(true).addTransformer(ConstantBooleanTrue.class.getName()).setCategory(PAGE_CATEGORY);
 
@@ -122,7 +118,6 @@ public interface DOMNode extends NodeInterface, Node, Renderable, DOMAdoptable, 
 
 		type.addPropertyGetter("restQuery", String.class);
 		type.addPropertyGetter("cypherQuery", String.class);
-		type.addPropertyGetter("xpathQuery", String.class);
 		type.addPropertyGetter("functionQuery", String.class);
 		type.addPropertyGetter("dataKey", String.class);
 		type.addPropertyGetter("showConditions", String.class);
@@ -169,9 +164,6 @@ public interface DOMNode extends NodeInterface, Node, Renderable, DOMAdoptable, 
 
 		type.overrideMethod("inTrash",                     false, "return getParent() == null && getOwnerDocumentAsSuperUser() == null;");
 		type.overrideMethod("dontCache",                   false, "return getProperty(dontCacheProperty);");
-		type.overrideMethod("renderDetails",               false, "return getProperty(renderDetailsProperty);");
-		type.overrideMethod("hideOnIndex",                 false, "return getProperty(hideOnIndexProperty);");
-		type.overrideMethod("hideOnDetail",                false, "return getProperty(hideOnDetailProperty);");
 		type.overrideMethod("isSynced",                    false, "return Iterables.count(getSyncedNodes()) > 0 || getSharedComponent() != null;");
 
 		// ----- interface org.w3c.dom.Node -----
@@ -312,7 +304,7 @@ public interface DOMNode extends NodeInterface, Node, Renderable, DOMAdoptable, 
 	}));
 
 	public static final String[] rawProps = new String[] {
-		"dataKey", "restQuery", "cypherQuery", "xpathQuery", "functionQuery", "selectedValues", "flow", "hideOnIndex", "hideOnDetail", "showForLocales", "hideForLocales", "showConditions", "hideConditions"
+		"dataKey", "restQuery", "cypherQuery", "functionQuery", "selectedValues", "flow", "showForLocales", "hideForLocales", "showConditions", "hideConditions"
 	};
 
 	boolean isSynced();
@@ -322,9 +314,6 @@ public interface DOMNode extends NodeInterface, Node, Renderable, DOMAdoptable, 
 	boolean avoidWhitespace();
 	boolean inTrash();
 	boolean dontCache();
-	boolean hideOnIndex();
-	boolean hideOnDetail();
-	boolean renderDetails();
 	boolean displayForLocale(final RenderContext renderContext);
 	boolean displayForConditions(final RenderContext renderContext);
 	boolean shouldBeRendered(final RenderContext renderContext);
@@ -349,7 +338,6 @@ public interface DOMNode extends NodeInterface, Node, Renderable, DOMAdoptable, 
 
 	String getCypherQuery();
 	String getRestQuery();
-	String getXpathQuery();
 	String getFunctionQuery();
 
 	String getPagePath();
@@ -1652,17 +1640,6 @@ public interface DOMNode extends NodeInterface, Node, Renderable, DOMAdoptable, 
 					return;
 				}
 			}
-		}
-
-		final GraphObject details = renderContext.getDetailsDataObject();
-		final boolean detailMode = details != null;
-
-		if (detailMode && thisNode.hideOnDetail()) {
-			return;
-		}
-
-		if (!detailMode && thisNode.hideOnIndex()) {
-			return;
 		}
 
 		if (isAdminOnlyEditMode) {

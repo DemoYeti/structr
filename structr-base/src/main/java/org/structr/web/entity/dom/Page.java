@@ -263,8 +263,6 @@ public interface Page extends DOMNode, Linkable, Document, DOMImplementation {
 	public static Page createNewPage(final SecurityContext securityContext, final String uuid, final String name) throws FrameworkException {
 
 		final PropertyKey<String> contentTypeKey      = StructrApp.key(Page.class, "contentType");
-		final PropertyKey<Boolean> hideOnDetailKey    = StructrApp.key(Page.class, "hideOnDetail");
-		final PropertyKey<Boolean> hideOnIndexKey     = StructrApp.key(Page.class, "hideOnIndex");
 		final PropertyKey<Boolean> enableBasicAuthKey = StructrApp.key(Page.class, "enableBasicAuth");
 		final App app                                 = StructrApp.getInstance(securityContext);
 		final PropertyMap properties                  = new PropertyMap();
@@ -274,8 +272,6 @@ public interface Page extends DOMNode, Linkable, Document, DOMImplementation {
 		properties.put(AbstractNode.name, name != null ? name : "page");
 		properties.put(AbstractNode.type, Page.class.getSimpleName());
 		properties.put(contentTypeKey,     "text/html");
-		properties.put(hideOnDetailKey,    false);
-		properties.put(hideOnIndexKey,     false);
 		properties.put(enableBasicAuthKey, false);
 
 		if (uuid != null) {
@@ -383,9 +379,7 @@ public interface Page extends DOMNode, Linkable, Document, DOMImplementation {
 		try {
 
 			final DOMElement element = (DOMElement) app.create(entityClass,
-				new NodeAttribute(StructrApp.key(entityClass, "tag"),          tag),
-				new NodeAttribute(StructrApp.key(entityClass, "hideOnDetail"), false),
-				new NodeAttribute(StructrApp.key(entityClass, "hideOnIndex"),  false)
+				new NodeAttribute(StructrApp.key(entityClass, "tag"),          tag)
 			);
 
 			element.doAdopt(page);
@@ -662,8 +656,6 @@ public interface Page extends DOMNode, Linkable, Document, DOMImplementation {
 			// create new content element
 			Content content = (Content) StructrApp.getInstance(thisPage.getSecurityContext()).command(CreateNodeCommand.class).execute(
 				new NodeAttribute(AbstractNode.type, Content.class.getSimpleName()),
-				new NodeAttribute(StructrApp.key(Content.class, "hideOnDetail"), false),
-				new NodeAttribute(StructrApp.key(Content.class, "hideOnIndex"), false),
 				new NodeAttribute(StructrApp.key(Content.class, "content"), text)
 			);
 
